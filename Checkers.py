@@ -10,6 +10,11 @@ class Checkers:
         self.black_pawns = 0
         self.black_kings = 0
         self.moves = []
+
+    def get_current_player(self) -> Player:
+        if not self.moves or self.moves[-1] == Player.BLACK:
+            return Player.WHITE
+        return Player.BLACK
     
     def init_board(self):
         # white pawns
