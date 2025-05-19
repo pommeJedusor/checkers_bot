@@ -80,7 +80,43 @@ class Checkers:
                 self.black_kings ^= square
 
         self.moves.append(move)
-            
+
+    def cancel_last_move(self):
+        move = self.moves.pop()
+
+        # move the main pawn to its original square
+        if move.player == Player.WHITE:
+            if self.white_pawns & (1 << move.destination):
+                self.white_pawns ^= 1 << move.destination
+                self.white_pawns |= 1 << move.origin
+            else:
+                self.white_kings ^= 1 << move.destination
+                if move.is_promotion:
+                    self.white_pawns |= 1 << move.origin
+                else:
+                    self.white_kings |= 1 << move.origin
+        if move.player == Player.BLACK:
+            if self.black_pawns & (1 << move.destination):
+                self.black_pawns ^= 1 << move.destination
+                self.black_pawns |= 1 << move.origin
+            else:
+                self.black_kings ^= 1 << move.destination
+                if move.is_promotion:
+                    self.black_pawns |= 1 << move.origin
+                else:
+                    self.black_kings |= 1 << move.origin
+
+        # put back the taken pawns/kings
+        for take in move.takes:
+            square = 1 << take.index
+            if move.player == Player.BLACK and not take.is_king:
+                self.white_pawns |= square
+            elif move.player == Player.BLACK and take.is_king:
+                self.white_kings |= square
+            elif move.player == Player.WHITE and not take.is_king:
+                self.black_pawns |= square
+            elif move.player == Player.WHITE and take.is_king:
+                self.black_kings |= square
 
 def main():
     move1 = Move(Player.WHITE, False, 30, 41, [])
@@ -98,6 +134,16 @@ def main():
     board.show_board()
     print("-- move 3 --")
     board.make_move(move3)
+    board.show_board()
+
+    print("-- cancel move 3 --")
+    board.cancel_last_move()
+    board.show_board()
+    print("-- cancel move 2 --")
+    board.cancel_last_move()
+    board.show_board()
+    print("-- cancel move 1 --")
+    board.cancel_last_move()
     board.show_board()
 
 if __name__ == "__main__":
