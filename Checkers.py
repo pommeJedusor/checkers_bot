@@ -1,6 +1,11 @@
+from typing import Optional
 from Move import Move
 from Take import Take
 from consts import *
+import random
+
+def is_promotion(y: int, player: Player) -> bool:
+    return y == 9 and player == Player.WHITE or y == 0 and player == Player.BLACK
 
 # 10x10, flying king
 class Checkers:
@@ -9,10 +14,10 @@ class Checkers:
         self.white_kings = 0
         self.black_pawns = 0
         self.black_kings = 0
-        self.moves = []
+        self.moves: list[Move] = []
 
     def get_current_player(self) -> Player:
-        if not self.moves or self.moves[-1] == Player.BLACK:
+        if not self.moves or self.moves[-1].player == Player.BLACK:
             return Player.WHITE
         return Player.BLACK
     
@@ -123,33 +128,118 @@ class Checkers:
             elif move.player == Player.WHITE and take.is_king:
                 self.black_kings |= square
 
-def main():
-    move1 = Move(Player.WHITE, False, 30, 41, [])
-    move2 = Move(Player.BLACK, False, 63, 52, [])
-    move3 = Move(Player.WHITE, False, 41, 63, [Take(52, False)])
+    def _get_pawn_takes(self, player: Player, index: int, _previous_takes: Optional[set[int]]=None, _moves: Optional[list[Move]]=None) -> list[Move]:
+        previous_takes = _previous_takes or set()
+        moves = _moves or []
+        player_pieces, opponent_pieces = self.white_pawns | self.white_kings, self.black_pawns | self.black_kings
+        if player == Player.BLACK:
+            opponent_pieces, player_pieces = player_pieces, opponent_pieces
+        all_pieces       = player_pieces    | opponent_pieces
+        x, y = index % 10, index // 10
 
+        directions = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+        for dx, dy in directions:
+            captured_piece = (y + dy) * 10 + (x + dx)
+            destination    = (y + dy * 2) * 10 + (x + dx * 2)
+            if not 0 <= y + dy * 2 < 10 or not 0 <= x + dx * 2 < 10:
+                continue
+            if not captured_piece in previous_takes and (1 << captured_piece) & opponent_pieces and not (1 << destination) & all_pieces:
+                previous_takes.add(captured_piece)
+                moves.append(Move(player, is_promotion(y + dy * 2, player), 101, destination, [Take(index, bool((self.white_kings | self.black_kings) & (1 << index))) for index in previous_takes]))
+                self._get_pawn_takes(player, destination, previous_takes, moves)
+                previous_takes.remove(captured_piece)
+
+        for move in moves:
+            move.origin = index
+
+        return moves
+
+    def _get_pawn_moves(self, player: Player, index: int) -> list[Move]:
+        moves: list[Move] = []
+        player_pieces, opponent_pieces = self.white_pawns | self.white_kings, self.black_pawns | self.black_kings
+        if player == Player.BLACK:
+            opponent_pieces, player_pieces = player_pieces, opponent_pieces
+        all_pieces       = player_pieces    | opponent_pieces
+        direction = 1 if player == Player.WHITE else -1
+        x, y = index % 10, index // 10
+
+        # normal forward moves
+        if 0 <= x - 1 < 10 and 0 <= y < 10 and not (1 << ((y + direction) * 10 + x - 1)) & all_pieces:
+            move = Move(player, is_promotion(y + direction, player), index, (y + direction) * 10 + x - 1, [])
+            moves.append(move)
+        if 0 <= x + 1 < 10 and 0 <= y < 10 and not (1 << ((y + direction) * 10 + x + 1)) & all_pieces:
+            move = Move(player, is_promotion(y + direction, player), index, (y + direction) * 10 + x + 1, [])
+            moves.append(move)
+
+        return moves + self._get_pawn_takes(player, index)
+
+    def _get_pawns_moves(self, player: Player) -> list[Move]:
+        board = self.white_pawns if player == Player.WHITE else self.black_pawns
+        pieces_moves: list[list[Move]] = []
+
+        for i in range(100):
+            if board & (1 << i):
+                pieces_moves.append(self._get_pawn_moves(player, i))
+
+        return [move for piece_moves in pieces_moves for move in piece_moves]
+
+    def _get_king_takes(self, player: Player, index: int) -> list[Move]:
+        return []
+
+    def _get_king_moves(self, player: Player, index: int) -> list[Move]:
+        moves: list[Move] = []
+        player_pieces, opponent_pieces = self.white_pawns | self.white_kings, self.black_pawns | self.black_kings
+        if player == Player.BLACK:
+            opponent_pieces, player_pieces = player_pieces, opponent_pieces
+        all_pieces       = player_pieces    | opponent_pieces
+        x, y = index % 10, index // 10
+
+        directions = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+        for dx, dy in directions:
+            for i in range(1, 10):
+                cx = x + dx * i
+                cy = y + dy * i
+                destination = cy * 10 + cx
+                if not 0 <= cx < 10 or not 0 <= cy < 10 or all_pieces & (1 << destination):
+                    break
+                move = Move(player, False, index, destination, [])
+                moves.append(move)
+
+        return moves + self._get_king_takes(player, index)
+
+    def _get_kings_moves(self, player: Player) -> list[Move]:
+        board = self.white_kings if player == Player.WHITE else self.black_kings
+        pieces_moves: list[list[Move]] = []
+
+        for i in range(100):
+            if board & (1 << i):
+                pieces_moves.append(self._get_king_moves(player, i))
+
+        return [move for piece_moves in pieces_moves for move in piece_moves]
+
+    def get_moves(self) -> list[Move]:
+        current_player = self.get_current_player()
+        all_moves = self._get_pawns_moves(current_player) + self._get_kings_moves(current_player)
+        greatest_take_number = max([len(move.takes) for move in all_moves])
+        legal_moves = [move for move in all_moves if len(move.takes) == greatest_take_number]
+        return legal_moves
+
+def main():
     board = Checkers()
     board.init_board()
     board.show_board()
-    print("-- move 1 --")
-    board.make_move(move1)
-    board.show_board()
-    print("-- move 2 --")
-    board.make_move(move2)
-    board.show_board()
-    print("-- move 3 --")
-    board.make_move(move3)
-    board.show_board()
-
-    print("-- cancel move 3 --")
-    board.cancel_last_move()
-    board.show_board()
-    print("-- cancel move 2 --")
-    board.cancel_last_move()
-    board.show_board()
-    print("-- cancel move 1 --")
-    board.cancel_last_move()
-    board.show_board()
+    
+    for i in range(1000):
+        input()
+        print(f"-- move {i} --")
+        moves = board.get_moves()
+        if not moves:
+            print("no more move")
+            break
+        move = random.choice(moves)
+        print(move.origin, move.destination)
+        board.make_move(move)
+        board.show_board()
 
 if __name__ == "__main__":
     main()
