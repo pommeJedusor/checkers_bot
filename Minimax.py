@@ -2,8 +2,17 @@ from typing import Optional
 from Checkers import Checkers
 from Move import Move
 from consts import Player
+import time
 
-DEPTH_MAX = 4
+DEPTH_MAX = 5
+
+def get_hash(board: Checkers) -> int:
+    white_hash = board.white_pawns | (board.white_kings >> 1)
+    black_hash = board.black_pawns | (board.black_kings >> 1)
+    final_hash = white_hash | (black_hash << 100)
+    if board.get_current_player() == Player.WHITE:
+        final_hash |= 1 << 200
+    return final_hash
 
 def eval_board(board: Checkers) -> int:
     score = 0
@@ -18,10 +27,18 @@ def eval_board(board: Checkers) -> int:
 
     return score
 
-def minimax(board: Checkers, depth: int=0) -> tuple[Optional[Move], int]:
+def minimax(board: Checkers, depth: int=0, explored_positions=None) -> tuple[Optional[Move], int]:
+    if explored_positions == None:
+        explored_positions = {}
+    hash = get_hash(board)
+    if hash in explored_positions:
+        return (None, explored_positions[hash])
+
     moves = board.get_moves()
     if depth >= DEPTH_MAX and not [move for move in moves if len(move.takes) > 0]:
-        return (None, eval_board(board))
+        score = eval_board(board)
+        explored_positions[hash] = score
+        return (None, score)
 
     if not moves:
         return (None, -100)
@@ -30,7 +47,7 @@ def minimax(board: Checkers, depth: int=0) -> tuple[Optional[Move], int]:
     for move in moves:
         board.make_move(move)
 
-        _, score = minimax(board, depth + 1)
+        _, score = minimax(board, depth + 1, explored_positions)
         score *= -1
         if score > best_score:
             best_move = move
@@ -38,6 +55,7 @@ def minimax(board: Checkers, depth: int=0) -> tuple[Optional[Move], int]:
 
         board.cancel_last_move()
 
+    explored_positions[hash] = best_score
     return (best_move, best_score)
 
 
@@ -48,7 +66,10 @@ def main():
 
     while True:
         input()
+        start = time.time()
         move, score = minimax(board)
+        end = time.time()
+        print("time took:", end - start)
         if move == None:
             print("current player has lost")
             break
