@@ -2,9 +2,10 @@ from typing import Optional
 from Checkers import Checkers
 from Move import Move
 from consts import Player
+from PDN import get_PDN
 import time
 
-DEPTH_MAX = 5
+DEPTH_MAX = 7
 
 def get_hash(board: Checkers) -> int:
     white_hash = board.white_pawns | (board.white_kings >> 1)
@@ -27,17 +28,17 @@ def eval_board(board: Checkers) -> int:
 
     return score
 
-def minimax(board: Checkers, depth: int=0, explored_positions=None) -> tuple[Optional[Move], int]:
-    if explored_positions == None:
-        explored_positions = {}
-    hash = get_hash(board)
-    if hash in explored_positions:
-        return (None, explored_positions[hash])
+def minimax(board: Checkers, depth: int=0, alpha: int=-1000, beta: int=1000, explored_positions=None) -> tuple[Optional[Move], int]:
+    #if explored_positions == None:
+    #    explored_positions = {}
+    #hash = get_hash(board)
+    #if hash in explored_positions:
+    #    return (None, explored_positions[hash])
 
     moves = board.get_moves()
     if depth >= DEPTH_MAX and not [move for move in moves if len(move.takes) > 0]:
         score = eval_board(board)
-        explored_positions[hash] = score
+        #explored_positions[hash] = score
         return (None, score)
 
     if not moves:
@@ -47,15 +48,20 @@ def minimax(board: Checkers, depth: int=0, explored_positions=None) -> tuple[Opt
     for move in moves:
         board.make_move(move)
 
-        _, score = minimax(board, depth + 1, explored_positions)
+        _, score = minimax(board, depth + 1, -beta, -alpha, explored_positions)
         score *= -1
+
+        board.cancel_last_move()
+
         if score > best_score:
             best_move = move
             best_score = score
 
-        board.cancel_last_move()
+        alpha = max(alpha, score)
+        if alpha >= beta:
+            break
 
-    explored_positions[hash] = best_score
+    #explored_positions[hash] = best_score
     return (best_move, best_score)
 
 
@@ -64,21 +70,16 @@ def main():
     board.init_board()
     board.show_board()
 
+    i = 1
     while True:
-        input()
-        start = time.time()
-        move, score = minimax(board)
-        end = time.time()
-        print("time took:", end - start)
+        move, _ = minimax(board)
+        print(get_PDN(board))
         if move == None:
             print("current player has lost")
             break
 
-        print("current player play:", move.origin, move.destination)
-        print("evaluation:", score)
         board.make_move(move)
-        board.show_board()
-
+        i += 1
 
 if __name__ == "__main__":
     main()
