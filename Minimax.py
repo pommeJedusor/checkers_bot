@@ -2,7 +2,7 @@ from typing import Optional
 from Checkers import Checkers
 from Move import Move
 from consts import Player
-from PDN import get_PDN
+import PDN
 import time
 
 DEPTH_MAX = 7
@@ -70,16 +70,16 @@ def main():
     board.init_board()
     board.show_board()
 
-    i = 1
     while True:
         move, _ = minimax(board)
-        print(get_PDN(board))
         if move == None:
             print("current player has lost")
             break
 
         board.make_move(move)
-        i += 1
+        print(PDN.get_move_notation(move))
+        new_move = input("enter your move:\n")
+        PDN.make_PDN_move(board, new_move)
 
 if __name__ == "__main__":
     main()

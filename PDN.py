@@ -22,9 +22,7 @@ def get_PDN(board: Checkers) -> str:
     return pdn
 
 def make_PDN_move(board: Checkers, move: str):
-    print(move)
     for m in board.get_moves():
-        print(get_move_notation(m))
         if move == get_move_notation(m):
             board.make_move(m)
             return
