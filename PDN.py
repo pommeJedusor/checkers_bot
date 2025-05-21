@@ -9,6 +9,16 @@ def get_move_notation(move: Move) -> str:
     middle = "-" if not move.takes else "x"
     return f"{start}{middle}{end}"
 
+# TODO fix this (the right notation also has the squares by which it passes not 4826 but 483726)
+def get_lidraughts_move_notation(move: Move) -> str:
+    start = str(50 - (move.origin // 2))
+    end   = str(50 - (move.destination // 2))
+    if int(start) < 10:
+        start = "0" + start
+    if int(end) < 10:
+        end = "0" + end
+    return f"{start}{end}"
+
 def get_PDN(board: Checkers) -> str:
     moves = [get_move_notation(move) for move in board.moves]
     pdn = ""
@@ -27,7 +37,15 @@ def make_PDN_move(board: Checkers, move: str):
             board.make_move(m)
             return
 
-    raise Exception("move not found")
+    raise Exception("PDN move not found")
+
+def make_lidraughts_move(board: Checkers, move: str):
+    for m in board.get_moves():
+        if move == get_lidraughts_move_notation(m):
+            board.make_move(m)
+            return
+
+    raise Exception("lidraughts move not found")
 
 def get_board_from_PDN(pdn: str) -> Checkers:
     board = Checkers()

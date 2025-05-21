@@ -3,7 +3,6 @@ from Checkers import Checkers
 from Move import Move
 from consts import Player
 import PDN
-import time
 
 DEPTH_MAX = 7
 
