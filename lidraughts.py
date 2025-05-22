@@ -135,11 +135,30 @@ async def get_incoming_events_from_game_stream(game_id):
                             # board.show_board()
 
                         elif event_type == "gameFull":
+                            print(data)
                             white_player_id = data["white"]["id"]
                             if white_player_id == get_profile_id():
                                 color = Player.WHITE
                             else:
                                 color = Player.BLACK
+                            moves = data["state"]["moves"].split(" ")
+                            for move in moves:
+                                print("move:", move)
+                                if len(move) > 4:
+                                    constructed_move += move[:2]
+                                    print("constructed_move", constructed_move)
+                                    continue
+                                elif len(move) == 4 and constructed_move:
+                                    constructed_move += move
+                                    print("constructed_move", constructed_move)
+                                    move = constructed_move
+                                    constructed_move = ""
+                                try:
+                                    PDN.make_lidraughts_move(board, move)
+                                except Exception as e:
+                                    print("move failed")
+                                    print(e)
+                                    continue
 
                         if (
                             color == Player.WHITE
