@@ -4,7 +4,7 @@ from Move import Move
 from consts import Player
 import PDN
 
-DEPTH_MAX = 7
+DEPTH_MAX = 1
 
 def get_hash(board: Checkers) -> int:
     white_hash = board.white_pawns | (board.white_kings >> 1)

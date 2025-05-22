@@ -18,6 +18,7 @@ event_stack = []
 
 profile_id = None
 
+
 def get_profile_id() -> str:
     url = "https://lidraughts.org/api/account"
     return profile_id or requests.get(url, headers=headers).json()["id"]
@@ -34,6 +35,7 @@ def is_bot_account() -> bool:
 
     return r.json().get("title") == "BOT"
 
+
 def upgrade_to_bot_account():
     url = "https://lidraughts.org/api/bot/account/upgrade"
 
@@ -43,14 +45,15 @@ def upgrade_to_bot_account():
         print(r.reason)
         exit(1)
 
+
 async def get_incoming_events_from_stream():
     url = "https://lidraughts.org/api/stream/event"
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers) as response:
-            buf = ''
+            buf = ""
             async for chunk in response.content.iter_any():
-                buf += chunk.decode('utf-8')
+                buf += chunk.decode("utf-8")
                 buf = re.sub(r"^ *\n", "", buf)
                 if not buf:
                     continue
@@ -60,6 +63,7 @@ async def get_incoming_events_from_stream():
                         continue
                     event_stack.append(line)
                 buf = ""
+
 
 async def treat_events():
     while True:
@@ -75,25 +79,28 @@ async def treat_events():
                 requests.post(url, headers=headers)
             elif event_type == "gameStart":
                 game_id = event["game"]["id"]
-                #url = f"https://lidraughts.org/api/bot/game/{game_id}/abort"
-                #print("game_id", game_id)
-                #requests.post(url, headers=headers)
+                # url = f"https://lidraughts.org/api/bot/game/{game_id}/abort"
+                # print("game_id", game_id)
+                # requests.post(url, headers=headers)
                 asyncio.create_task(get_incoming_events_from_game_stream(game_id))
             else:
                 print(event)
+
 
 async def get_incoming_events_from_game_stream(game_id):
     url = f"https://lidraughts.org/api/bot/game/stream/{game_id}"
     board = Checkers()
     board.init_board()
     color = None
+    moves = []
+    constructed_move = ""
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as response:
-                buf = ''
+                buf = ""
                 async for chunk in response.content.iter_any():
-                    buf += chunk.decode('utf-8')
+                    buf += chunk.decode("utf-8")
                     buf = re.sub(r"^ *\n", "", buf)
                     if not buf:
                         continue
@@ -108,36 +115,59 @@ async def get_incoming_events_from_game_stream(game_id):
                             continue
                         elif event_type == "gameState":
                             moves = data.get("moves").split(" ")
+                            move = moves[-1]
                             print("move:", moves[-1])
-                            if color == Player.WHITE and len(moves) % 2 == 1 or color == Player.BLACK and len(moves) % 2 == 0:
+                            if len(moves[-1]) > 4:
+                                constructed_move += moves[-1][:2]
+                                print("constructed_move", constructed_move)
                                 continue
-                            PDN.make_lidraughts_move(board, moves[-1])
-                            board.show_board()
-
-                            # if lost
-                            if not board.get_moves():
-                                return
-
-                            move, score = minimax(board)
-                            if not move:
-                                print("Error: move not found")
-                                return
-                            board.make_move(move)
-                            board.show_board()
-                            print(f"making move {PDN.get_lidraughts_move_notation(move)} / {PDN.get_move_notation(move)}")
-                            url = f"https://lidraughts.org/api/bot/game/{game_id}/move/{PDN.get_lidraughts_move_notation(move)}"
-                            requests.post(url, headers=headers)
+                            elif len(moves[-1]) == 4 and constructed_move:
+                                constructed_move += moves[-1]
+                                print("constructed_move", constructed_move)
+                                move = constructed_move
+                                constructed_move = ""
+                            try:
+                                PDN.make_lidraughts_move(board, move)
+                            except Exception as e:
+                                print("move failed")
+                                print(e)
+                                continue
+                            # board.show_board()
 
                         elif event_type == "gameFull":
                             white_player_id = data["white"]["id"]
-                            print(white_player_id, get_profile_id())
                             if white_player_id == get_profile_id():
                                 color = Player.WHITE
                             else:
                                 color = Player.BLACK
+
+                        if (
+                            color == Player.WHITE
+                            and len(board.moves) % 2 == 1
+                            or color == Player.BLACK
+                            and len(board.moves) % 2 == 0
+                        ):
+                            continue
+
+                        # if lost
+                        if not board.get_moves():
+                            return
+
+                        move, score = minimax(board)
+                        if not move:
+                            print("Error: move not found")
+                            return
+                        # board.show_board()
+                        print("I play:", PDN.get_lidraughts_move_notation_list(move))
+                        for move in PDN.get_lidraughts_move_notation_list(move):
+                            url = f"https://lidraughts.org/api/bot/game/{game_id}/move/{move}"
+                            r = requests.post(url, headers=headers)
+                            if json.loads(r.content).get("error"):
+                                print(json.loads(r.content).get("error"))
                     buf = ""
     except Exception as e:
         print(e)
+
 
 async def main():
     # ensure that we have a bot account
@@ -148,10 +178,8 @@ async def main():
     else:
         print("already a bot account")
 
-    await asyncio.gather(
-        get_incoming_events_from_stream(),
-        treat_events()
-    )
+    await asyncio.gather(get_incoming_events_from_stream(), treat_events())
+
 
 if __name__ == "__main__":
     asyncio.run(main())
