@@ -139,9 +139,11 @@ class Checkers:
         player: Player,
         index: int,
         _previous_takes: Optional[list[int]] = None,
+        _passing_by: Optional[list[int]] = None,
         _moves: Optional[list[Move]] = None,
     ) -> list[Move]:
         previous_takes = _previous_takes or []
+        passing_by = _passing_by or []
         moves = _moves or []
         player_pieces, opponent_pieces = (
             self.white_pawns | self.white_kings,
@@ -164,6 +166,7 @@ class Checkers:
                 and not (1 << destination) & all_pieces
             ):
                 previous_takes.append(captured_piece)
+                passing_by.append(destination)
                 moves.append(
                     Move(
                         player,
@@ -179,9 +182,13 @@ class Checkers:
                             )
                             for index in previous_takes
                         ],
+                        [i for i in passing_by],
                     )
                 )
-                self._get_pawn_takes(player, destination, previous_takes, moves)
+                self._get_pawn_takes(
+                    player, destination, previous_takes, passing_by, moves
+                )
+                passing_by.pop()
                 previous_takes.remove(captured_piece)
 
         for move in moves:
@@ -212,6 +219,7 @@ class Checkers:
                 index,
                 (y + direction) * 10 + x - 1,
                 [],
+                [],
             )
             moves.append(move)
         if (
@@ -223,6 +231,7 @@ class Checkers:
                 is_promotion(y + direction, player),
                 index,
                 (y + direction) * 10 + x + 1,
+                [],
                 [],
             )
             moves.append(move)
@@ -244,9 +253,11 @@ class Checkers:
         player: Player,
         index: int,
         _previous_takes: Optional[list[int]] = None,
+        _passing_by: Optional[list[int]] = None,
         _moves: Optional[list[Move]] = None,
     ) -> list[Move]:
         previous_takes = _previous_takes or []
+        passing_by = _passing_by or []
         moves = _moves or []
         player_pieces, opponent_pieces = (
             self.white_pawns | self.white_kings,
@@ -285,6 +296,7 @@ class Checkers:
                         break
 
                     previous_takes.append(captured_piece)
+                    passing_by.append(destination)
                     moves.append(
                         Move(
                             player,
@@ -301,10 +313,14 @@ class Checkers:
                                 )
                                 for index in previous_takes
                             ],
+                            [i for i in passing_by],
                         )
                     )
-                    self._get_king_takes(player, destination, previous_takes, moves)
+                    self._get_king_takes(
+                        player, destination, previous_takes, passing_by, moves
+                    )
                     previous_takes.remove(captured_piece)
+                    passing_by.pop()
                 if should_break:
                     break
 
@@ -332,7 +348,7 @@ class Checkers:
                 destination = cy * 10 + cx
                 if not is_valid_position(cx, cy) or all_pieces & (1 << destination):
                     break
-                move = Move(player, False, index, destination, [])
+                move = Move(player, False, index, destination, [], [])
                 moves.append(move)
 
         return moves + self._get_king_takes(player, index)

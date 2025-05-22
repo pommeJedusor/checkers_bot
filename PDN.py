@@ -19,15 +19,13 @@ def get_lidraughts_move_notation_list(move: Move) -> list[str]:
         return [f"{start}{end}"]
 
     result = []
-    start = move.origin
-    for take in move.takes:
-        dest = take.index * 2 - start
-        lidraughts_start = str(50 - (start // 2))
-        lidraughts_dest = str(50 - (dest // 2))
-        str_start = "0" * (2 - len(lidraughts_start)) + lidraughts_start
-        str_dest = "0" * (2 - len(lidraughts_dest)) + lidraughts_dest
-        result.append(f"{str_start}{str_dest}")
-        start = dest
+    previous = str(50 - (move.origin // 2))
+    previous = "0" * (2 - len(previous)) + previous
+    for square in move.passing_by:
+        square = str(50 - (square // 2))
+        square = "0" * (2 - len(square)) + square
+        result.append(f"{previous}{square}")
+        previous = square
 
     return result
 
@@ -40,12 +38,8 @@ def get_lidraughts_move_notation_str(move: Move) -> str:
         end = "0" * (2 - len(end)) + end
         return f"{start}{end}"
 
-    squares = [move.origin]
-    for take in move.takes:
-        squares.append(take.index * 2 - squares[-1])
-
     result = ""
-    for square in squares:
+    for square in [move.origin] + move.passing_by:
         str_square = str(50 - (square // 2))
         result += "0" * (2 - len(str_square)) + str_square
 
