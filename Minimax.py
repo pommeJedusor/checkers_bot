@@ -4,7 +4,7 @@ from Move import Move
 from consts import Player
 import PDN
 
-DEPTH_MAX = 1
+DEPTH_MAX = 8
 
 
 def get_hash(board: Checkers) -> int:
@@ -37,16 +37,17 @@ def minimax(
     beta: int = 1000,
     explored_positions=None,
 ) -> tuple[Optional[Move], int]:
-    # if explored_positions == None:
-    #    explored_positions = {}
-    # hash = get_hash(board)
-    # if hash in explored_positions:
-    #    return (None, explored_positions[hash])
+    if explored_positions == None:
+        explored_positions = {}
+    hash = get_hash(board)
+    if hash in explored_positions:
+        alpha = max(alpha, explored_positions[hash])
+    else:
+        explored_positions[hash] = -1000
 
     moves = board.get_moves()
     if depth >= DEPTH_MAX and not [move for move in moves if len(move.takes) > 0]:
         score = eval_board(board)
-        # explored_positions[hash] = score
         return (None, score)
 
     if not moves:
@@ -65,11 +66,11 @@ def minimax(
             best_move = move
             best_score = score
 
+        explored_positions[hash] = max(score, explored_positions[hash] or -1000)
         alpha = max(alpha, score)
         if alpha >= beta:
             break
 
-    # explored_positions[hash] = best_score
     return (best_move, best_score)
 
 
