@@ -19,6 +19,16 @@ event_stack = []
 profile_id = None
 
 
+def send_message(game_id: str, message: str):
+    url = f"https://lidraughts.org/api/bot/game/{game_id}/chat"
+    data = {"room": "player", "text": f"{message}"}
+    requests.post(
+        url,
+        headers=headers,
+        data=data,
+    )
+
+
 def get_profile_id() -> str:
     url = "https://lidraughts.org/api/account"
     return profile_id or requests.get(url, headers=headers).json()["id"]
@@ -159,6 +169,7 @@ async def get_incoming_events_from_game_stream(game_id):
                                     print("move failed")
                                     print(e)
                                     continue
+                            send_message(game_id, "hi!")
 
                         if (
                             color == Player.WHITE
@@ -183,6 +194,9 @@ async def get_incoming_events_from_game_stream(game_id):
                             r = requests.post(url, headers=headers)
                             if json.loads(r.content).get("error"):
                                 print(json.loads(r.content).get("error"))
+
+                        send_message(game_id, f"current score: {score}")
+
                     buf = ""
     except Exception as e:
         print(e)
